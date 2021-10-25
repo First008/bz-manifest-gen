@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: $(NAMESPACE)      # Servisin ismi
+  namespace: $(NAMESPACE) # Yer alacağı namespace
+  labels:
+    app: $(NAMESPACE)     # Altında yer alacağı app
+spec:
+  ports:
+
+  $(PORTS): $(NODES)
+
+
+  clusterIP: 10.152.183.132 # Sabit ip veriyoruz ki conteinerlara bir ip verebilelim
+
+  selector:
+    app: $(NAMESPACE)

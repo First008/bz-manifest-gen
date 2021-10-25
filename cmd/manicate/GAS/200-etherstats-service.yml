@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: $(NAMESPACE)-ethstats
+  namespace: $(NAMESPACE)
+  labels:
+    app: $(NAMESPACE)-ethstats
+spec:
+  selector:
+    app: $(NAMESPACE)-ethstats
+  type: ClusterIP
+  clusterIP: 10.152.183.131 # Sabit ip tanımladık ki conteinerlara bir ip verebilelim.
+  ports:
+  - port: 3000              # 3000 portuna gelen isteği alacak
+    targetPort: http

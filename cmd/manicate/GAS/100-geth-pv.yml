@@ -1,0 +1,17 @@
+# WIP kullanma
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: $(NAMESPACE)-pv
+  namespace: $(NAMESPACE)
+  labels:
+    type: local
+spec:
+  storageClassName: $(NAMESPACE)-storage # Claimle aynı class namei göstermesi lazım ki birbirlerini görebilsinler
+  capacity:
+    storage: $(STORAGE)Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: "/root/.ethereum" # Bu pathi persistence yapmak istediğimizi söylüyoruz. 
+    

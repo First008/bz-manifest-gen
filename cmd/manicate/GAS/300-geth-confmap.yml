@@ -1,0 +1,60 @@
+#
+# Bu config dosyasındaki node isimleri gibi değişkenler kullanıcıdan alınacak bilgilere göre şekillenecek ve yazılacak scrip/kodlarla eklenecek
+# 
+# Ayrıca 
+#
+#
+
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: $(NAMESPACE)-geth
+  namespace: $(NAMESPACE)
+  labels:
+    app: $(NAMESPACE)
+data:
+
+  $(NODES): $(NODES)
+  
+
+  networkid: "$(ID)"
+  
+  password.txt: "$(PWD)"
+
+  genesis.json: |-
+    {
+      "config": {
+        "chainId": $(ID),
+        "homesteadBlock": 0,
+        "eip150Block": 0,
+        "eip150Hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "eip155Block": 0,
+        "eip158Block": 0,
+        "byzantiumBlock": 0,
+        "constantinopleBlock": 0,
+        "petersburgBlock": 0,
+        "istanbulBlock": 0,
+        "clique": {
+          "period": 10,
+          "epoch": 30000
+        }
+      },
+      "nonce": "0x0",
+      "timestamp": "0x613b4d60",
+      "extraData": "0x0000000000000000000000000000000000000000000000000000000000000000newaddresses0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "gasLimit": "0x47b760",
+      "difficulty": "0x1",
+      "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "coinbase": "0x0000000000000000000000000000000000000000",
+      "alloc": {
+        "0000000000000000000000000000000000000000": {
+          "balance": "0x1"
+        },
+$(ADDRESSES)
+      },
+      "number": "0x0",
+      "gasUsed": "0x0",
+      "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "baseFeePerGas": null
+    }

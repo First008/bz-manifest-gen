@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: $(NAMESPACE)-ethstats
+  namespace: $(NAMESPACE)
+  labels:
+    app: $(NAMESPACE)-ethstats
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: $(NAMESPACE)-ethstats
+  template:
+    metadata:
+      labels:
+        app: $(NAMESPACE)-ethstats
+    spec:
+      containers:
+      - name: ethstats
+        image: jozzy008/ethstats-poa:v0.1.0
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: "0.25"
+            memory: "300Mi"
+          limits:
+            cpu: ".5"
+            memory: "375Mi"
+        ports:
+        - name: http
+          containerPort: 3000
+        env:
+        - name: WS_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: $(NAMESPACE)-ethstats
+              key: WS_SECRET
+        volumeMounts:
+          - mountPath: /root/.etherstats/$(NAMESPACE)
+            name: data2
+
+      volumes:
+        - name: data2
+          persistentVolumeClaim:
+            claimName: '$(NAMESPACE)-pv-claim'

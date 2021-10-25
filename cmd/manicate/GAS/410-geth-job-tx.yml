@@ -1,0 +1,88 @@
+#
+#
+# Bu Job bazı gerekli dosyaları persistance volumea kopyalar, directorylere gethi init eder ve bootnode ile nodekeyleri oluşturup enodları dosyaya yazar.
+#
+# Bu Jobun oluşturduğu pod asıl conteinerın işi bitince COMPLETED olur ve Job bu podu siler.
+#
+#
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: geth-job-tx
+  namespace: geth
+spec:
+  ttlSecondsAfterFinished: 10
+  template:
+    spec:
+      containers:
+      - name: keystore
+        image: alpine
+
+        command: ["/bin/sh", "-c"]
+        args:
+          - "cp -r /root/.ethereum/$(NAMESPACE)/keystore /root/.ethereum/$(NAMESPACE)/node-tx"
+
+        volumeMounts:
+        - mountPath: /root/.ethereum/$(NAMESPACE)
+          name: data2
+        - name: config-genesis
+          mountPath: /root/.ethereum/$(NAMESPACE)/keystore/UTC--2021-09-09T10-55-14.594491679Z--bc1c09acefbc15a0d325584c7a704fa310907e67
+          subPath: UTC--2021-09-09T10-55-14.594491679Z--bc1c09acefbc15a0d325584c7a704fa310907e67
+        - name: config-genesis
+          mountPath: /root/.ethereum/$(NAMESPACE)/keystore/UTC--2021-09-09T10-55-30.324205181Z--ab412db6f0733decc8e23ee97e6dc569422a0490
+          subPath: UTC--2021-09-09T10-55-30.324205181Z--ab412db6f0733decc8e23ee97e6dc569422a0490
+        - name: config-genesis
+          mountPath: /root/.ethereum/$(NAMESPACE)/keystore/UTC--2021-09-09T10-55-43.621998835Z--8e24c067e098c2dadf28aec75a551257d2c9316f
+          subPath: UTC--2021-09-09T10-55-43.621998835Z--8e24c067e098c2dadf28aec75a551257d2c9316f        
+  
+         
+      initContainers:
+      
+      - name: create-dirs
+        image: ethereum/client-go:release-1.8
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh"]
+
+        args: 
+        - "-c"
+        - "mkdir -p /root/.ethereum/$(NAMESPACE)/node-tx"
+
+        volumeMounts:
+        - name: data2
+          mountPath: /root/.ethereum/$(NAMESPACE)
+      
+      - name: init-genesis-node-tx
+        image: ethereum/client-go:release-1.8
+        imagePullPolicy: IfNotPresent
+        args: [
+          "--datadir", "/root/.ethereum/$(NAMESPACE)/node-tx",
+          "init", "/root/.ethereum/$(NAMESPACE)/genesis.json"
+          ]
+
+        volumeMounts:
+        - name: data2
+          mountPath: /root/.ethereum/$(NAMESPACE)
+        - name: config-genesis
+          mountPath: /root/.ethereum/$(NAMESPACE)/genesis.json
+          subPath: genesis.json
+        - name: config-genesis
+          mountPath: /root/.ethereum/$(NAMESPACE)/pswd/password.txt
+          subPath: password.txt
+    
+
+      
+
+      volumes: 
+        - name: config
+          hostPath:
+            path: /root/.ethereum/$(NAMESPACE)
+        - name: config-genesis
+          configMap:
+            name: eth-geth
+        - emptyDir: {}
+          name: data
+        - name: data2
+          persistentVolumeClaim:
+            claimName: 'geth-pv-claim-dev'
+
+      restartPolicy: Never

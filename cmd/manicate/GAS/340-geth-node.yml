@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: $(NAMESPACE)-$(NUMBER)
+  namespace: $(NAMESPACE)
+spec:
+  serviceName: "$(NAMESPACE)"
+  replicas: 1 # by default is 1
+  selector:
+    matchLabels:
+      app: $(NAMESPACE) # has to match .spec.template.metadata.labels
+  template:
+    metadata:
+      labels:
+        app: $(NAMESPACE) # has to match .spec.selector.matchLabels
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: $(NAMESPACE)-node
+        image: ethereum/client-go
+        ports:
+        - containerPort: $(CONPORT)
+        - name: discovery-udp
+          containerPort: $(UDPPORT)
+          protocol: UDP
+        - name: discovery-tcp
+          containerPort: $(TCPPORT)
+        resources:              # Limitleri belirliyoruz
+          requests:
+            cpu: "0.25"
+            memory: "300Mi"
+          limits:
+            cpu: ".5"
+            memory: "375Mi"
+        command: ["/bin/sh", "-c"]
+        args:
+          [
+            "geth --bootnodes $(cat /root/.ethereum/$(NAMESPACE)/enodelist.txt) --datadir /root/.ethereum/$(NAMESPACE)/$(NODE_NAME) --syncmode full --port $(TCPPORT) --http --http.addr 0.0.0.0 --http.port $(CONPORT) --http.vhosts '*' --http.api admin,eth,miner,net,txpool,personal,web3,clique --http.corsdomain '*' --networkid $(NETWORK_ID) --ethstats=$(HOSTNAME):$(ETHSTATS_SECRET)@$(ETHSTATS_SVC) --allow-insecure-unlock --unlock `cat /root/.ethereum/$(NAMESPACE)/$(NODE_NAME)/address0x.txt` --password /root/.ethereum/$(NAMESPACE)/pswd/password.txt --maxpeers 80 --miner.gasprice 0 --miner.etherbase `cat /root/.ethereum/$(NAMESPACE)/$(NODE_NAME)/address0x.txt` --mine"
+          ]
+        env:                          # Çeşitli enviromental variables
+        - name: HOSTNAME
+          value: node$(NUMBER)
+        - name: ETHSTATS_SVC
+          value: 10.152.183.131:3000  # Ethstatsın ip:portu
+        - name: ETHSTATS_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: $(NAMESPACE)-ethstats
+              key: WS_SECRET
+        - name: NETWORK_ID
+          valueFrom:
+            configMapKeyRef:
+              name: $(NAMESPACE)-geth
+              key: networkid
+        - name: NODE_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: $(NAMESPACE)-geth
+              key: node$(NUMBER)
+    
+
+        volumeMounts:               # Volume mountları.
+          - mountPath: /root/.ethereum/$(NAMESPACE)
+            name: data2             # data2 persistance volumeun adı. BKNZ: volumes.
+          - name: config-genesis
+            mountPath: /root/.ethereum/$(NAMESPACE)/pswd/password.txt
+            subPath: password.txt
+
+      
+      volumes: 
+        - name: config
+          hostPath:
+            path: /root/.ethereum/$(NAMESPACE)
+        - name: config-genesis      # Configmapten alacağımız bazı config dataları için onu da volume gösteriyoruz.
+          configMap:
+            name: $(NAMESPACE)-geth
+        - emptyDir: {} # !DEPRECATED
+          name: data
+        - name: data2
+          persistentVolumeClaim:
+            claimName: '$(NAMESPACE)-pv-claim'  # Persistance volumeu gösteren claimi data2 olarak gösteriyoruz.
+---

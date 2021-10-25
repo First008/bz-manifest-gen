@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: $(NAMESPACE)-pv-claim
+  namespace: $(NAMESPACE)
+spec:
+  storageClassName: $(NAMESPACE)-storage
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: $(STORAGE)Gi

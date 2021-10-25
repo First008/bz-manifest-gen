@@ -1,0 +1,144 @@
+#
+#
+# Bu Job bazı gerekli dosyaları persistance volumea kopyalar, directorylere gethi init eder ve bootnode ile nodekeyleri oluşturup enodları dosyaya yazar.
+#
+# Bu Jobun oluşturduğu pod asıl conteinerın işi bitince COMPLETED olur ve Job bu podu siler.
+#
+#
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: $(NAMESPACE)-job
+  namespace: $(NAMESPACE)
+spec:
+  ttlSecondsAfterFinished: 10
+  template:
+    spec:
+      containers:
+        - name: enode-creator #taşınacak
+          image: ethereum/client-go:alltools-release-1.8
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh"]
+
+          args: 
+          - "-c"
+          - "$(ENODEARG)"
+            
+          env:
+          $(NENV)
+          - name: ACCOUNT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: $(NAMESPACE)-account-secret
+                key: accountsecret
+          
+
+
+          volumeMounts:
+          - name: data2
+            mountPath: /root/.ethereum/$(NAMESPACE)
+          - name: config-genesis
+            mountPath: /root/.ethereum/$(NAMESPACE)/genesis.json
+            subPath: genesis.json     
+
+       
+      initContainers:
+      
+      - name: create-dirs
+        image: ethereum/client-go:release-1.8
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh"]
+
+        args: 
+        - "-c"
+        - "rm -rf /root/.ethereum/$(NAMESPACE)/* && mkdir -p /root/.ethereum/$(NAMESPACE)/bootnode"
+
+
+        env:
+        $(ENV)
+
+        volumeMounts:
+        - name: data2
+          mountPath: /root/.ethereum/$(NAMESPACE)
+      
+$(CA)
+
+
+      - name: get-account-0xaddresses
+        image: ethereum/client-go:alltools-release-1.8
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh"]
+        args:
+        - "-c"
+        - "$(GAA0x)"
+        env:
+        - name: ACCOUNT_SECRET
+          valueFrom:
+            configMapKeyRef:
+              name: $(NAMESPACE)-geth
+              key: password.txt
+        $(ENV)
+
+
+        volumeMounts:
+        - name: data2
+          mountPath: /root/.ethereum/$(NAMESPACE)
+
+      - name: get-account-addresses
+        image: ethereum/client-go:alltools-release-1.8
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh"]
+        args:
+        - "-c"
+        - "$(GAA)"
+        env:
+        - name: ACCOUNT_SECRET
+          valueFrom:
+            configMapKeyRef:
+              name: $(NAMESPACE)-geth
+              key: password.txt
+        $(ENV)
+
+
+        volumeMounts:
+        - name: data2
+          mountPath: /root/.ethereum/$(NAMESPACE)
+
+      - name: genesis-configuration
+        image: alpine
+
+        command: ["/bin/sh", "-c"]
+        args:
+          - "$(GC)"
+        
+        env:
+        $(ENV)
+
+        volumeMounts:
+        - mountPath: /root/.ethereum/$(NAMESPACE)
+          name: data2
+        - name: config-genesis
+          mountPath: /root/.ethereum/$(NAMESPACE)/genesis.json
+          subPath: genesis.json
+
+
+
+$(INITGENESISCONTEINERS)
+
+
+      
+
+      volumes: 
+        - name: config
+          hostPath:
+            path: /root/.ethereum/$(NAMESPACE)
+        - name: config-genesis
+          configMap:
+            name: $(NAMESPACE)-geth
+        - emptyDir: {}
+          name: data
+        - name: data2
+          persistentVolumeClaim:
+            claimName: '$(NAMESPACE)-pv-claim'
+
+      restartPolicy: Never

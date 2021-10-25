@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: geth-tx
+  namespace: geth
+spec:
+  serviceName: "geth"
+  replicas: 1 # by default is 1
+  selector:
+    matchLabels:
+      app: geth # has to match .spec.template.metadata.labels
+  template:
+    metadata:
+      labels:
+        app: geth # has to match .spec.selector.matchLabels
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: geth-node
+        image: ethereum/client-go
+        ports:
+        - containerPort: 8545
+        - name: discovery-udp
+          containerPort: 30310
+          protocol: UDP
+        - name: discovery-tcp
+          containerPort: 30310
+        resources:              # Limitleri belirliyoruz
+          requests:
+            cpu: "0.25"
+            memory: "300Mi"
+          limits:
+            cpu: ".5"
+            memory: "375Mi"
+        command: ["/bin/sh", "-c"]
+        args:
+          [
+            "geth --bootnodes $(cat /root/.ethereum/$(NAMESPACE)/enodelist.txt) --datadir /root/.ethereum/$(NAMESPACE)/$(NODE_NAME) --syncmode full --port 30310 --http --http.addr 0.0.0.0 --http.port 8545 --http.vhosts '*' --http.api admin,eth,miner,net,txpool,personal,web3,clique --http.corsdomain '*' --networkid $(NETWORK_ID) --ethstats=$(HOSTNAME):$(ETHSTATS_SECRET)@$(ETHSTATS_SVC)"
+          ]
+        env:                          # Çeşitli enviromental variables
+        - name: HOSTNAME
+          value: node-tx
+        - name: ETHSTATS_SVC
+          value: 10.152.183.131:3000  # Ethstatsın ip:portu
+        - name: ETHSTATS_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: eth-ethstats
+              key: WS_SECRET
+        - name: NETWORK_ID
+          valueFrom:
+            configMapKeyRef:
+              name: eth-geth
+              key: networkid
+        - name: NODE_NAME
+          value: node-tx
+    
+
+        volumeMounts:               # Volume mountları.
+          - mountPath: /root/.ethereum/$(NAMESPACE)
+            name: data2             # data2 persistance volumeun adı. BKNZ: volumes.
+          - name: config-genesis
+            mountPath: /root/.ethereum/$(NAMESPACE)/pswd/password.txt
+            subPath: password.txt
+
+      
+      volumes: 
+        - name: config
+          hostPath:
+            path: /root/.ethereum/$(NAMESPACE)
+        - name: config-genesis      # Configmapten alacağımız bazı config dataları için onu da volume gösteriyoruz.
+          configMap:
+            name: eth-geth
+        - emptyDir: {} # !DEPRECATED
+          name: data
+        - name: data2
+          persistentVolumeClaim:
+            claimName: 'geth-pv-claim-dev'  # Persistance volumeu gösteren claimi data2 olarak gösteriyoruz.
